@@ -26,7 +26,14 @@ jobs:
       - name: Build the game data file
         env:
           MODE: ${{ github.event.inputs.mode || 'build' }}
-        run: python3 tools/game_data.py
+        run: python3 tools/game_data.py | tee samples.txt
+      - name: Save samples to the "samples" branch
+        if: ${{ github.event.inputs.mode == 'samples' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan samples && git rm -rq --cached . && git add samples.txt
+          git commit -qm "Samples of the game data sources" && git push -f origin samples
       - name: Commit if changed
         if: ${{ (github.event.inputs.mode || 'build') == 'build' }}
         run: |
