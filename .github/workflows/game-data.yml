@@ -1,0 +1,38 @@
+# Makes data/pokemon.json once a week from public Pokémon GO game data:
+#  - PvPoke's gamemaster (github.com/pvpoke/pvpoke): species, forms, base stats, legendary/mythical tags, families
+#  - PokeMiners' game master (github.com/PokeMiners/game_masters): CP multipliers per level and stardust costs
+# Nightvault GO uses this to work out IVs and levels. Read-only data, nothing is sent anywhere.
+name: Update Pokémon GO game data
+
+on:
+  schedule:
+    - cron: "41 5 * * 1"       # Mondays
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "build = write data/pokemon.json, samples = only print what the sources look like"
+        default: build
+        type: choice
+        options: [build, samples]
+
+permissions:
+  contents: write
+
+jobs:
+  game-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the game data file
+        env:
+          MODE: ${{ github.event.inputs.mode || 'build' }}
+        run: python3 tools/game_data.py
+      - name: Commit if changed
+        if: ${{ (github.event.inputs.mode || 'build') == 'build' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/pokemon.json
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "Update Pokémon GO game data"
+          for i in 1 2 3; do git pull --rebase && git push && break; sleep 10; done
